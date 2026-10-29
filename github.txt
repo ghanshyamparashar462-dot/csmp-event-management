@@ -1,0 +1,136 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSMP SU Connect | Event Management</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f6fb;color:#172033}
+header{background:#18243c;color:white;padding:24px}
+header h1{margin:0 0 8px;font-size:25px}
+header p{margin:0;color:#cbd5e1}
+main{padding:22px;max-width:1400px;margin:auto}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+.stat{background:white;padding:17px;border-radius:12px;flex:1;min-width:120px;box-shadow:0 2px 8px #00000008}
+.stat strong{display:block;font-size:26px;margin-top:8px}
+.board{display:grid;grid-template-columns:repeat(4,minmax(230px,1fr));gap:15px;overflow-x:auto}
+.column{background:#e9edf5;padding:13px;border-radius:12px;min-height:330px}
+.column h3{font-size:15px;margin:3px 0 15px}
+.count{float:right;background:white;padding:3px 8px;border-radius:20px}
+.task{background:white;border-radius:9px;padding:14px;margin-bottom:11px;box-shadow:0 2px 5px #00000009;cursor:grab}
+.task h4{font-size:14px;margin:7px 0 12px}
+.id{font-size:11px;color:#64748b}
+.meta{font-size:12px;color:#526078;margin:7px 0}
+select,input{width:100%;padding:9px;border:1px solid #d6dce7;border-radius:7px;background:white}
+button{border:0;border-radius:7px;background:#4f46e5;color:white;padding:10px 15px;cursor:pointer}
+.add{margin:0 0 18px}
+form{background:white;padding:16px;border-radius:12px;margin-bottom:20px;display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:end}
+label{font-size:12px;color:#64748b;display:block;margin-bottom:6px}
+@media(max-width:900px){.board{grid-template-columns:repeat(4,245px)}form{grid-template-columns:1fr 1fr}.stats{gap:8px}}
+</style>
+</head>
+<body>
+<header>
+<h1>CSMP SU Connect</h1>
+<p>Event Management · Agile Project Board</p>
+</header>
+<main>
+<div class="stats">
+<div class="stat">Total Tasks<strong id="total">6</strong></div>
+<div class="stat">To Do<strong id="todo">3</strong></div>
+<div class="stat">In Progress<strong id="progress">1</strong></div>
+<div class="stat">Review<strong id="review">1</strong></div>
+<div class="stat">Done<strong id="done">1</strong></div>
+</div>
+
+<button class="add" onclick="document.getElementById('taskform').hidden=false">+ Add New Task</button>
+<form id="taskform" hidden>
+<div><label>Task title</label><input id="title" required placeholder="Enter task name"></div>
+<div><label>Assignee</label><input id="assignee" required placeholder="Team member"></div>
+<div><label>Due date</label><input id="due" type="date" required></div>
+<div><label>Status</label><select id="status">
+<option>To Do</option><option>In Progress</option><option>Review</option><option>Done</option>
+</select></div>
+<button type="submit">Create</button>
+</form>
+
+<div class="board" id="board"></div>
+<p style="font-size:12px;color:#64748b;margin-top:20px">Demo project · Changes are saved in this browser only.</p>
+</main>
+<script>
+const statuses=["To Do","In Progress","Review","Done"];
+const initial=[
+{id:1,title:"Finalize event requirements",assignee:"Aarav",due:"2026-11-02",status:"To Do"},
+{id:2,title:"Prepare event budget",assignee:"Priya",due:"2026-11-04",status:"To Do"},
+{id:3,title:"Contact sponsors",assignee:"Rahul",due:"2026-11-06",status:"To Do"},
+{id:4,title:"Design event posters",assignee:"Sneha",due:"2026-11-01",status:"In Progress"},
+{id:5,title:"Review registration form",assignee:"Priya",due:"2026-10-31",status:"Review"},
+{id:6,title:"Create event planning checklist",assignee:"Aarav",due:"2026-10-28",status:"Done"}
+];
+let tasks;
+try{tasks=JSON.parse(localStorage.getItem("csmpTasks"))||initial}
+catch(e){tasks=initial}
+let nextId=Math.max(6,...tasks.map(t=>t.id))+1;
+function save(){localStorage.setItem("csmpTasks",JSON.stringify(tasks))}
+function render(){
+const board=document.getElementById("board");
+board.innerHTML="";
+statuses.forEach((status,index)=>{
+const items=tasks.filter(t=>t.status===status);
+const col=document.createElement("section");
+col.className="column";
+col.ondragover=e=>e.preventDefault();
+col.ondrop=e=>{
+e.preventDefault();
+const id=Number(e.dataTransfer.getData("text/plain"));
+const task=tasks.find(t=>t.id===id);
+if(task){task.status=status;save();render()}
+};
+const heading=document.createElement("h3");
+heading.textContent=status+" ";
+const count=document.createElement("span");
+count.className="count";count.textContent=items.length;
+heading.append(count);col.append(heading);
+items.forEach(task=>{
+const card=document.createElement("article");
+card.className="task";card.draggable=true;
+card.ondragstart=e=>e.dataTransfer.setData("text/plain",task.id);
+const id=document.createElement("div");id.className="id";
+id.textContent="EM-"+String(task.id).padStart(2,"0");
+const title=document.createElement("h4");title.textContent=task.title;
+const person=document.createElement("div");person.className="meta";
+person.textContent="Assignee: "+task.assignee;
+const date=document.createElement("div");date.className="meta";
+date.textContent="Due: "+task.due;
+const move=document.createElement("select");
+statuses.forEach(s=>{const o=document.createElement("option");o.textContent=s;o.value=s;move.append(o)});
+move.value=task.status;
+move.setAttribute("aria-label","Move "+task.title);
+move.onchange=()=>{task.status=move.value;save();render()};
+card.append(id,title,person,date,move);col.append(card);
+});
+board.append(col);
+});
+document.getElementById("total").textContent=tasks.length;
+["To Do","In Progress","Review","Done"].forEach((s,i)=>{
+document.getElementById(["todo","progress","review","done"][i]).textContent=
+tasks.filter(t=>t.status===s).length;
+});
+}
+document.getElementById("taskform").onsubmit=e=>{
+e.preventDefault();
+tasks.push({
+id:nextId++,
+title:document.getElementById("title").value.trim(),
+assignee:document.getElementById("assignee").value.trim(),
+due:document.getElementById("due").value,
+status:document.getElementById("status").value
+});
+save();render();e.target.reset();e.target.hidden=true;
+};
+render();
+</script>
+</body>
+</html>
